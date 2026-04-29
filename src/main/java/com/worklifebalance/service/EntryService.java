@@ -1,0 +1,145 @@
+package com.worklifebalance.service;
+
+import com.worklifebalance.dto.AppointmentDto;
+import com.worklifebalance.dto.DailyEntryDto;
+import com.worklifebalance.dto.SummaryDto;
+import com.worklifebalance.model.DailyEntry;
+import com.worklifebalance.repository.DailyEntryRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class EntryService {
+
+    private final DailyEntryRepository repository;
+
+    public List<DailyEntryDto> getAll(LocalDate from, LocalDate to) {
+        List<DailyEntry> entries = (from != null && to != null)
+                ? repository.findByDateBetweenOrderByDateAsc(from, to)
+                : repository.findAll();
+        return entries.stream().map(this::toDto).toList();
+    }
+
+    public DailyEntryDto getById(Long id) {
+        return toDto(findOrThrow(id));
+    }
+
+    public DailyEntryDto create(DailyEntryDto dto) {
+        if (repository.findByDate(dto.getDate()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An entry for this date already exists");
+        }
+        DailyEntry entry = toEntity(dto);
+        return toDto(repository.save(entry));
+    }
+
+    public DailyEntryDto update(Long id, DailyEntryDto dto) {
+        DailyEntry entry = findOrThrow(id);
+        repository.findByDate(dto.getDate()).ifPresent(existing -> {
+            if (!existing.getId().equals(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "An entry for this date already exists");
+            }
+        });
+        entry.setDate(dto.getDate());
+        entry.setWorkHours(dto.getWorkHours());
+        entry.setFreeTimeHours(dto.getFreeTimeHours());
+        entry.setSleepingHours(dto.getSleepingHours());
+        entry.setMood(dto.getMood());
+        entry.setNotes(dto.getNotes());
+        return toDto(repository.save(entry));
+    }
+
+    public void delete(Long id) {
+        repository.delete(findOrThrow(id));
+    }
+
+    public SummaryDto getSummary(String period, LocalDate date) {
+        LocalDate start;
+        LocalDate end;
+        if ("monthly".equalsIgnoreCase(period)) {
+            start = date.with(TemporalAdjusters.firstDayOfMonth());
+            end = date.with(TemporalAdjusters.lastDayOfMonth());
+        } else {
+            start = date.with(DayOfWeek.MONDAY);
+            end = date.with(DayOfWeek.SUNDAY);
+        }
+
+        List<DailyEntry> entries = repository.findByDateBetweenOrderByDateAsc(start, end);
+
+        SummaryDto summary = new SummaryDto();
+        summary.setPeriod(period);
+        summary.setStartDate(start);
+        summary.setEndDate(end);
+        summary.setEntries(entries.stream().map(this::toDto).toList());
+
+        summary.setTotalWorkHours(entries.stream().mapToDouble(e -> orZero(e.getWorkHours())).sum());
+        summary.setTotalFreeTimeHours(entries.stream().mapToDouble(e -> orZero(e.getFreeTimeHours())).sum());
+        summary.setTotalSleepingHours(entries.stream().mapToDouble(e -> orZero(e.getSleepingHours())).sum());
+
+        double totalAppHours = entries.stream()
+                .flatMap(e -> e.getAppointments().stream())
+                .mapToDouble(a -> orZero(a.getDurationHours()))
+                .sum();
+        int appointmentCount = entries.stream().mapToInt(e -> e.getAppointments().size()).sum();
+        summary.setTotalAppointmentHours(totalAppHours);
+        summary.setAppointmentCount(appointmentCount);
+
+        summary.setAvgMood(entries.stream()
+                .filter(e -> e.getMood() != null)
+                .mapToInt(DailyEntry::getMood)
+                .average()
+                .orElse(0));
+
+        return summary;
+    }
+
+    private DailyEntry findOrThrow(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
+    }
+
+    private double orZero(Double value) {
+        return value != null ? value : 0.0;
+    }
+
+    DailyEntryDto toDto(DailyEntry entry) {
+        DailyEntryDto dto = new DailyEntryDto();
+        dto.setId(entry.getId());
+        dto.setDate(entry.getDate());
+        dto.setWorkHours(entry.getWorkHours());
+        dto.setFreeTimeHours(entry.getFreeTimeHours());
+        dto.setSleepingHours(entry.getSleepingHours());
+        dto.setMood(entry.getMood());
+        dto.setNotes(entry.getNotes());
+        dto.setCreatedAt(entry.getCreatedAt());
+        dto.setUpdatedAt(entry.getUpdatedAt());
+        dto.setAppointments(entry.getAppointments().stream().map(a -> {
+            AppointmentDto ad = new AppointmentDto();
+            ad.setId(a.getId());
+            ad.setDailyEntryId(entry.getId());
+            ad.setTitle(a.getTitle());
+            ad.setTime(a.getTime());
+            ad.setDurationHours(a.getDurationHours());
+            return ad;
+        }).toList());
+        return dto;
+    }
+
+    private DailyEntry toEntity(DailyEntryDto dto) {
+        DailyEntry entry = new DailyEntry();
+        entry.setDate(dto.getDate());
+        entry.setWorkHours(dto.getWorkHours());
+        entry.setFreeTimeHours(dto.getFreeTimeHours());
+        entry.setSleepingHours(dto.getSleepingHours());
+        entry.setMood(dto.getMood());
+        entry.setNotes(dto.getNotes());
+        return entry;
+    }
+}
