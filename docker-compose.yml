@@ -10,5 +10,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: worklifebalance
+      PGUSER: wlb
+      PGPASSWORD: wlb
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
