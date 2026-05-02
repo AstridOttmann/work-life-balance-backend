@@ -16,5 +16,6 @@ public class SummaryDto {
     private double totalAppointmentHours;
     private int appointmentCount;
     private double avgMood;
+    private double avgHealth;
     private List<DailyEntryDto> entries;
 }

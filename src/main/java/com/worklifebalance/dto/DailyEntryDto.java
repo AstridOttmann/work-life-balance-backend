@@ -1,7 +1,7 @@
 package com.worklifebalance.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -21,12 +21,16 @@ public class DailyEntryDto {
     private Double sleepingHours;
 
     @NotNull
-    @Min(1) @Max(10)
-    private Integer mood;
+    @DecimalMin("1.0") @DecimalMax("10.0")
+    private Double mood;
+
+    @DecimalMin("1.0") @DecimalMax("10.0")
+    private Double health;
 
     private String notes;
 
     private List<AppointmentDto> appointments;
+    private List<TimeBlockDto> timeBlocks;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

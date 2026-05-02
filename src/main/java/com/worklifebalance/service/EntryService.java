@@ -3,8 +3,11 @@ package com.worklifebalance.service;
 import com.worklifebalance.dto.AppointmentDto;
 import com.worklifebalance.dto.DailyEntryDto;
 import com.worklifebalance.dto.SummaryDto;
+import com.worklifebalance.dto.TimeBlockDto;
 import com.worklifebalance.model.DailyEntry;
+import com.worklifebalance.model.TimeBlock;
 import com.worklifebalance.repository.DailyEntryRepository;
+import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -48,10 +51,9 @@ public class EntryService {
             }
         });
         entry.setDate(dto.getDate());
-        entry.setWorkHours(dto.getWorkHours());
-        entry.setFreeTimeHours(dto.getFreeTimeHours());
         entry.setSleepingHours(dto.getSleepingHours());
         entry.setMood(dto.getMood());
+        entry.setHealth(dto.getHealth());
         entry.setNotes(dto.getNotes());
         return toDto(repository.save(entry));
     }
@@ -79,8 +81,16 @@ public class EntryService {
         summary.setEndDate(end);
         summary.setEntries(entries.stream().map(this::toDto).toList());
 
-        summary.setTotalWorkHours(entries.stream().mapToDouble(e -> orZero(e.getWorkHours())).sum());
-        summary.setTotalFreeTimeHours(entries.stream().mapToDouble(e -> orZero(e.getFreeTimeHours())).sum());
+        summary.setTotalWorkHours(entries.stream().mapToDouble(e ->
+                e.getTimeBlocks().isEmpty() ? orZero(e.getWorkHours())
+                : e.getTimeBlocks().stream().filter(b -> "WORK".equals(b.getType()))
+                        .mapToDouble(b -> minutesBetween(b) / 60.0).sum()
+        ).sum());
+        summary.setTotalFreeTimeHours(entries.stream().mapToDouble(e ->
+                e.getTimeBlocks().isEmpty() ? orZero(e.getFreeTimeHours())
+                : e.getTimeBlocks().stream().filter(b -> "FREE".equals(b.getType()))
+                        .mapToDouble(b -> minutesBetween(b) / 60.0).sum()
+        ).sum());
         summary.setTotalSleepingHours(entries.stream().mapToDouble(e -> orZero(e.getSleepingHours())).sum());
 
         double totalAppHours = entries.stream()
@@ -93,7 +103,13 @@ public class EntryService {
 
         summary.setAvgMood(entries.stream()
                 .filter(e -> e.getMood() != null)
-                .mapToInt(DailyEntry::getMood)
+                .mapToDouble(DailyEntry::getMood)
+                .average()
+                .orElse(0));
+
+        summary.setAvgHealth(entries.stream()
+                .filter(e -> e.getHealth() != null)
+                .mapToDouble(DailyEntry::getHealth)
                 .average()
                 .orElse(0));
 
@@ -113,13 +129,28 @@ public class EntryService {
         DailyEntryDto dto = new DailyEntryDto();
         dto.setId(entry.getId());
         dto.setDate(entry.getDate());
-        dto.setWorkHours(entry.getWorkHours());
-        dto.setFreeTimeHours(entry.getFreeTimeHours());
+        boolean hasBlocks = !entry.getTimeBlocks().isEmpty();
+        double compWork = entry.getTimeBlocks().stream().filter(b -> "WORK".equals(b.getType()))
+                .mapToDouble(b -> minutesBetween(b) / 60.0).sum();
+        double compFree = entry.getTimeBlocks().stream().filter(b -> "FREE".equals(b.getType()))
+                .mapToDouble(b -> minutesBetween(b) / 60.0).sum();
+        dto.setWorkHours(hasBlocks ? (compWork > 0 ? compWork : null) : entry.getWorkHours());
+        dto.setFreeTimeHours(hasBlocks ? (compFree > 0 ? compFree : null) : entry.getFreeTimeHours());
         dto.setSleepingHours(entry.getSleepingHours());
         dto.setMood(entry.getMood());
+        dto.setHealth(entry.getHealth());
         dto.setNotes(entry.getNotes());
         dto.setCreatedAt(entry.getCreatedAt());
         dto.setUpdatedAt(entry.getUpdatedAt());
+        dto.setTimeBlocks(entry.getTimeBlocks().stream().map(b -> {
+            TimeBlockDto tb = new TimeBlockDto();
+            tb.setId(b.getId());
+            tb.setDailyEntryId(entry.getId());
+            tb.setType(b.getType());
+            tb.setStartTime(b.getStartTime());
+            tb.setEndTime(b.getEndTime());
+            return tb;
+        }).toList());
         dto.setAppointments(entry.getAppointments().stream().map(a -> {
             AppointmentDto ad = new AppointmentDto();
             ad.setId(a.getId());
@@ -135,11 +166,15 @@ public class EntryService {
     private DailyEntry toEntity(DailyEntryDto dto) {
         DailyEntry entry = new DailyEntry();
         entry.setDate(dto.getDate());
-        entry.setWorkHours(dto.getWorkHours());
-        entry.setFreeTimeHours(dto.getFreeTimeHours());
         entry.setSleepingHours(dto.getSleepingHours());
         entry.setMood(dto.getMood());
+        entry.setHealth(dto.getHealth());
         entry.setNotes(dto.getNotes());
         return entry;
+    }
+
+    private double minutesBetween(TimeBlock b) {
+        long mins = ChronoUnit.MINUTES.between(b.getStartTime(), b.getEndTime());
+        return mins < 0 ? mins + 1440 : mins;
     }
 }

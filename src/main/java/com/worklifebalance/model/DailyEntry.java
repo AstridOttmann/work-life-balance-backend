@@ -27,13 +27,18 @@ public class DailyEntry {
     private Double sleepingHours;
 
     @Column(nullable = false)
-    private Integer mood;
+    private Double mood;
+
+    private Double health;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
 
     @OneToMany(mappedBy = "dailyEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Appointment> appointments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "dailyEntry", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TimeBlock> timeBlocks = new ArrayList<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
