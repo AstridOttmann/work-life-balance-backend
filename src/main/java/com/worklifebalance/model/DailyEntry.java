@@ -1,5 +1,6 @@
 package com.worklifebalance.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "daily_entry")
+@Table(
+    name = "daily_entry",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "date"})
+)
 @Getter
 @Setter
 public class DailyEntry {
@@ -19,7 +23,12 @@ public class DailyEntry {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
+    private User user;
+
+    @Column(nullable = false)
     private LocalDate date;
 
     private Double workHours;
