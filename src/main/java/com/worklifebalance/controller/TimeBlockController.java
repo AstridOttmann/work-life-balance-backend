@@ -1,10 +1,12 @@
 package com.worklifebalance.controller;
 
 import com.worklifebalance.dto.TimeBlockDto;
+import com.worklifebalance.model.User;
 import com.worklifebalance.service.TimeBlockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,18 +18,20 @@ public class TimeBlockController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TimeBlockDto create(@Valid @RequestBody TimeBlockDto dto) {
-        return service.create(dto);
+    public TimeBlockDto create(@AuthenticationPrincipal User user, @Valid @RequestBody TimeBlockDto dto) {
+        return service.create(user, dto);
     }
 
     @PutMapping("/{id}")
-    public TimeBlockDto update(@PathVariable Long id, @Valid @RequestBody TimeBlockDto dto) {
-        return service.update(id, dto);
+    public TimeBlockDto update(@AuthenticationPrincipal User user,
+                               @PathVariable Long id,
+                               @Valid @RequestBody TimeBlockDto dto) {
+        return service.update(user, id, dto);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        service.delete(id);
+    public void delete(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        service.delete(user, id);
     }
 }
