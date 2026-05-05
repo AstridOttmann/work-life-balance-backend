@@ -26,6 +26,6 @@ public class TimeBlock {
     @Column(nullable = false)
     private LocalTime startTime;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private LocalTime endTime;
 }
