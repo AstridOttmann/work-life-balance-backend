@@ -85,12 +85,14 @@ public class EntryService {
 
         summary.setTotalWorkHours(entries.stream().mapToDouble(e ->
                 e.getTimeBlocks().isEmpty() ? orZero(e.getWorkHours())
-                : e.getTimeBlocks().stream().filter(b -> "WORK".equals(b.getType()))
+                : e.getTimeBlocks().stream()
+                        .filter(b -> "WORK".equals(b.getType()) && b.getEndTime() != null)
                         .mapToDouble(b -> minutesBetween(b) / 60.0).sum()
         ).sum());
         summary.setTotalFreeTimeHours(entries.stream().mapToDouble(e ->
                 e.getTimeBlocks().isEmpty() ? orZero(e.getFreeTimeHours())
-                : e.getTimeBlocks().stream().filter(b -> "FREE".equals(b.getType()))
+                : e.getTimeBlocks().stream()
+                        .filter(b -> "FREE".equals(b.getType()) && b.getEndTime() != null)
                         .mapToDouble(b -> minutesBetween(b) / 60.0).sum()
         ).sum());
         summary.setTotalSleepingHours(entries.stream()
@@ -131,9 +133,11 @@ public class EntryService {
         dto.setId(entry.getId());
         dto.setDate(entry.getDate());
         boolean hasBlocks = !entry.getTimeBlocks().isEmpty();
-        double compWork = entry.getTimeBlocks().stream().filter(b -> "WORK".equals(b.getType()))
+        double compWork = entry.getTimeBlocks().stream()
+                .filter(b -> "WORK".equals(b.getType()) && b.getEndTime() != null)
                 .mapToDouble(b -> minutesBetween(b) / 60.0).sum();
-        double compFree = entry.getTimeBlocks().stream().filter(b -> "FREE".equals(b.getType()))
+        double compFree = entry.getTimeBlocks().stream()
+                .filter(b -> "FREE".equals(b.getType()) && b.getEndTime() != null)
                 .mapToDouble(b -> minutesBetween(b) / 60.0).sum();
         dto.setWorkHours(hasBlocks ? (compWork > 0 ? compWork : null) : entry.getWorkHours());
         dto.setFreeTimeHours(hasBlocks ? (compFree > 0 ? compFree : null) : entry.getFreeTimeHours());
@@ -150,6 +154,9 @@ public class EntryService {
             tb.setType(b.getType());
             tb.setStartTime(b.getStartTime());
             tb.setEndTime(b.getEndTime());
+            tb.setPaused(b.isPaused());
+            tb.setElapsedMs(b.getElapsedMs());
+            tb.setSegmentStartTime(b.getSegmentStartTime());
             return tb;
         }).toList());
         dto.setAppointments(entry.getAppointments().stream().map(a -> {
