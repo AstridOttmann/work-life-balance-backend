@@ -155,6 +155,8 @@ public class EntryService {
             tb.setStartTime(b.getStartTime());
             tb.setEndTime(b.getEndTime());
             tb.setPaused(b.isPaused());
+            tb.setElapsedMs(b.getElapsedMs());
+            tb.setSegmentStartTime(b.getSegmentStartTime());
             return tb;
         }).toList());
         dto.setAppointments(entry.getAppointments().stream().map(a -> {

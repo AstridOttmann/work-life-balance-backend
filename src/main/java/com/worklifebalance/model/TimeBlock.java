@@ -31,4 +31,10 @@ public class TimeBlock {
 
     @Column(nullable = false)
     private boolean paused = false;
+
+    @Column(nullable = false)
+    private long elapsedMs = 0;
+
+    @Column(nullable = true)
+    private LocalTime segmentStartTime;
 }

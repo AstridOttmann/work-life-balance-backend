@@ -24,4 +24,8 @@ public class TimeBlockDto {
     private LocalTime endTime;   // nullable — omitted from JSON when null
 
     private boolean paused;
+
+    private long elapsedMs;
+
+    private LocalTime segmentStartTime;  // nullable — omitted from JSON when null
 }
