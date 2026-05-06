@@ -6,6 +6,7 @@ import com.worklifebalance.dto.SummaryDto;
 import com.worklifebalance.dto.TimeBlockDto;
 import com.worklifebalance.model.DailyEntry;
 import com.worklifebalance.model.TimeBlock;
+import com.worklifebalance.model.User;
 import com.worklifebalance.repository.DailyEntryRepository;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
@@ -24,28 +25,29 @@ public class EntryService {
 
     private final DailyEntryRepository repository;
 
-    public List<DailyEntryDto> getAll(LocalDate from, LocalDate to) {
+    public List<DailyEntryDto> getAll(User user, LocalDate from, LocalDate to) {
         List<DailyEntry> entries = (from != null && to != null)
-                ? repository.findByDateBetweenOrderByDateAsc(from, to)
-                : repository.findAll();
+                ? repository.findByUserAndDateBetweenOrderByDateAsc(user, from, to)
+                : repository.findAllByUserOrderByDateDesc(user);
         return entries.stream().map(this::toDto).toList();
     }
 
-    public DailyEntryDto getById(Long id) {
-        return toDto(findOrThrow(id));
+    public DailyEntryDto getById(User user, Long id) {
+        return toDto(findOrThrow(user, id));
     }
 
-    public DailyEntryDto create(DailyEntryDto dto) {
-        if (repository.findByDate(dto.getDate()).isPresent()) {
+    public DailyEntryDto create(User user, DailyEntryDto dto) {
+        if (repository.findByUserAndDate(user, dto.getDate()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An entry for this date already exists");
         }
         DailyEntry entry = toEntity(dto);
+        entry.setUser(user);
         return toDto(repository.save(entry));
     }
 
-    public DailyEntryDto update(Long id, DailyEntryDto dto) {
-        DailyEntry entry = findOrThrow(id);
-        repository.findByDate(dto.getDate()).ifPresent(existing -> {
+    public DailyEntryDto update(User user, Long id, DailyEntryDto dto) {
+        DailyEntry entry = findOrThrow(user, id);
+        repository.findByUserAndDate(user, dto.getDate()).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "An entry for this date already exists");
             }
@@ -58,11 +60,11 @@ public class EntryService {
         return toDto(repository.save(entry));
     }
 
-    public void delete(Long id) {
-        repository.delete(findOrThrow(id));
+    public void delete(User user, Long id) {
+        repository.delete(findOrThrow(user, id));
     }
 
-    public SummaryDto getSummary(String period, LocalDate date) {
+    public SummaryDto getSummary(User user, String period, LocalDate date) {
         LocalDate start;
         LocalDate end;
         if ("monthly".equalsIgnoreCase(period)) {
@@ -73,7 +75,7 @@ public class EntryService {
             end = date.with(DayOfWeek.SUNDAY);
         }
 
-        List<DailyEntry> entries = repository.findByDateBetweenOrderByDateAsc(start, end);
+        List<DailyEntry> entries = repository.findByUserAndDateBetweenOrderByDateAsc(user, start, end);
 
         SummaryDto summary = new SummaryDto();
         summary.setPeriod(period);
@@ -91,33 +93,32 @@ public class EntryService {
                 : e.getTimeBlocks().stream().filter(b -> "FREE".equals(b.getType()))
                         .mapToDouble(b -> minutesBetween(b) / 60.0).sum()
         ).sum());
-        summary.setTotalSleepingHours(entries.stream().mapToDouble(e -> orZero(e.getSleepingHours())).sum());
+        summary.setTotalSleepingHours(entries.stream()
+                .mapToDouble(e -> orZero(e.getSleepingHours())).sum());
 
         double totalAppHours = entries.stream()
                 .flatMap(e -> e.getAppointments().stream())
                 .mapToDouble(a -> orZero(a.getDurationHours()))
                 .sum();
-        int appointmentCount = entries.stream().mapToInt(e -> e.getAppointments().size()).sum();
         summary.setTotalAppointmentHours(totalAppHours);
-        summary.setAppointmentCount(appointmentCount);
+        summary.setAppointmentCount(entries.stream()
+                .mapToInt(e -> e.getAppointments().size()).sum());
 
         summary.setAvgMood(entries.stream()
                 .filter(e -> e.getMood() != null)
                 .mapToDouble(DailyEntry::getMood)
-                .average()
-                .orElse(0));
+                .average().orElse(0));
 
         summary.setAvgHealth(entries.stream()
                 .filter(e -> e.getHealth() != null)
                 .mapToDouble(DailyEntry::getHealth)
-                .average()
-                .orElse(0));
+                .average().orElse(0));
 
         return summary;
     }
 
-    private DailyEntry findOrThrow(Long id) {
-        return repository.findById(id)
+    private DailyEntry findOrThrow(User user, Long id) {
+        return repository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
     }
 

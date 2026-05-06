@@ -3,6 +3,7 @@ package com.worklifebalance.service;
 import com.worklifebalance.dto.TimeBlockDto;
 import com.worklifebalance.model.DailyEntry;
 import com.worklifebalance.model.TimeBlock;
+import com.worklifebalance.model.User;
 import com.worklifebalance.repository.DailyEntryRepository;
 import com.worklifebalance.repository.TimeBlockRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,26 +18,26 @@ public class TimeBlockService {
     private final TimeBlockRepository timeBlockRepository;
     private final DailyEntryRepository dailyEntryRepository;
 
-    public TimeBlockDto create(TimeBlockDto dto) {
-        DailyEntry entry = dailyEntryRepository.findById(dto.getDailyEntryId())
+    public TimeBlockDto create(User user, TimeBlockDto dto) {
+        DailyEntry entry = dailyEntryRepository.findByIdAndUser(dto.getDailyEntryId(), user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily entry not found"));
         return toDto(timeBlockRepository.save(toEntity(dto, entry)));
     }
 
-    public TimeBlockDto update(Long id, TimeBlockDto dto) {
-        TimeBlock block = findOrThrow(id);
+    public TimeBlockDto update(User user, Long id, TimeBlockDto dto) {
+        TimeBlock block = findOrThrow(user, id);
         block.setType(dto.getType());
         block.setStartTime(dto.getStartTime());
         block.setEndTime(dto.getEndTime());
         return toDto(timeBlockRepository.save(block));
     }
 
-    public void delete(Long id) {
-        timeBlockRepository.delete(findOrThrow(id));
+    public void delete(User user, Long id) {
+        timeBlockRepository.delete(findOrThrow(user, id));
     }
 
-    private TimeBlock findOrThrow(Long id) {
-        return timeBlockRepository.findById(id)
+    private TimeBlock findOrThrow(User user, Long id) {
+        return timeBlockRepository.findByIdAndDailyEntry_User(id, user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Time block not found"));
     }
 
