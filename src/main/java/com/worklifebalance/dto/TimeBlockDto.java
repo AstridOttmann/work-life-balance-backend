@@ -22,4 +22,6 @@ public class TimeBlockDto {
     private LocalTime startTime;
 
     private LocalTime endTime;   // nullable — omitted from JSON when null
+
+    private boolean paused;
 }

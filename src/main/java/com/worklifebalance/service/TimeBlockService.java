@@ -29,6 +29,7 @@ public class TimeBlockService {
         block.setType(dto.getType());
         block.setStartTime(dto.getStartTime());
         block.setEndTime(dto.getEndTime());
+        block.setPaused(dto.isPaused());
         return toDto(timeBlockRepository.save(block));
     }
 
@@ -47,6 +48,7 @@ public class TimeBlockService {
         b.setType(dto.getType());
         b.setStartTime(dto.getStartTime());
         b.setEndTime(dto.getEndTime());
+        b.setPaused(dto.isPaused());
         return b;
     }
 
@@ -57,6 +59,7 @@ public class TimeBlockService {
         dto.setType(b.getType());
         dto.setStartTime(b.getStartTime());
         dto.setEndTime(b.getEndTime());
+        dto.setPaused(b.isPaused());
         return dto;
     }
 }

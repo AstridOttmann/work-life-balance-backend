@@ -28,4 +28,7 @@ public class TimeBlock {
 
     @Column(nullable = true)
     private LocalTime endTime;
+
+    @Column(nullable = false)
+    private boolean paused = false;
 }
